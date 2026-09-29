@@ -5,7 +5,7 @@ permissions:
 on:
   pull_request:
   push:
-    branches: [ "main", "master", "luno-prod" ] # Runs on pushes to main branches
+    branches: [ "main" ] # Runs on pushes to main branch
   workflow_dispatch: # Enables the "Run workflow" button in GitHub Actions UI
 
 jobs:
