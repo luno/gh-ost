@@ -31,7 +31,7 @@ function build {
       exit 1
   fi
 
-  (cd $buildpath && tar cfz ./gh-ost-${GOOS}-${GOARCH}.tar.gz $target)
+  (cd $buildpath && tar cfz ./luno-gh-ost-${GOOS}-${GOARCH}.tar.gz $target)
 
   # build RPM and deb packages for Linux
   if [ "$GOOS" == "linux" ] ; then
@@ -46,13 +46,13 @@ function build {
     cd $buildpath
 
     fpm_opts=(
-      -v "${RELEASE_VERSION}" --epoch 1 -f -s dir -n gh-ost
+      -v "${RELEASE_VERSION}" --epoch 1 -f -s dir -n luno-gh-ost
       -m 'GitHub' --description "GitHub's Online Schema Migrations for MySQL "
       --url "https://github.com/github/gh-ost" --vendor "GitHub" --license "Apache 2.0"
       -C "$builddir/gh-ost" --prefix=/
     )
-    fpm "${fpm_opts[@]}" -t rpm -a "${rpm_arch}" -p "gh-ost.${rpm_arch}.rpm" --rpm-rpmbuild-define "_build_id_links none" --rpm-os linux .
-    fpm "${fpm_opts[@]}" -t deb -a "${deb_arch}" -p "gh-ost.${deb_arch}.deb" --deb-no-default-config-files .
+    fpm "${fpm_opts[@]}" -t rpm -a "${rpm_arch}" -p "luno-gh-ost.${rpm_arch}.rpm" --rpm-rpmbuild-define "_build_id_links none" --rpm-os linux .
+    fpm "${fpm_opts[@]}" -t deb -a "${deb_arch}" -p "luno-gh-ost.${deb_arch}.deb" --deb-no-default-config-files .
     cd -
   fi
 
@@ -62,7 +62,8 @@ function build {
 
 main() {
   if [ -z "${RELEASE_VERSION}" ] ; then
-    RELEASE_VERSION=$(git describe --abbrev=0 --tags | tr -d 'v')
+    RELEASE_VERSION=$(git describe --abbrev=0 --tags)
+    RELEASE_VERSION=${RELEASE_VERSION#v}
   fi
   if [ -z "${RELEASE_VERSION}" ] ; then
     echo "RELEASE_VERSION must be set"
@@ -74,7 +75,7 @@ main() {
   fi
 
   buildpath=/tmp/gh-ost-release
-  target=gh-ost
+  target=luno-gh-ost
   ldflags="-X main.AppVersion=${RELEASE_VERSION} -X main.GitCommit=${GIT_COMMIT}"
 
   mkdir -p ${buildpath}
@@ -86,9 +87,9 @@ main() {
 
   # Generate a SHA256SUMS manifest with basenames only, so a downloaded set can be
   # verified in place with `sha256sum -c SHA256SUMS` (no absolute build paths leak in).
-  # The name has no gh-ost prefix, so it self-excludes from the gh-ost* glob below.
+  # The name has no luno-gh-ost prefix, so it self-excludes from the luno-gh-ost* glob below.
   echo "Checksums:"
-  ( cd "$buildpath" && shasum -a256 gh-ost* | tee SHA256SUMS )
+  ( cd "$buildpath" && shasum -a256 luno-gh-ost* | tee SHA256SUMS )
 
   echo "Release assets:"
   ls -1 "$buildpath"
