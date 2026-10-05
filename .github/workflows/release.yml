@@ -40,21 +40,21 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          # Match build.sh, which strips every "v" from the tag to form the version.
-          expected_version=$(echo "${RELEASE_TAG}" | tr -d 'v')
+          # Match build.sh, which strips a single leading "v" from the tag to form the version.
+          expected_version="${RELEASE_TAG#v}"
 
           # linux-amd64 runs on the runner, so assert the reported version exactly.
-          tar -xzf gh-ost-linux-amd64.tar.gz
-          actual_version=$(./gh-ost --version)
+          tar -xzf luno-gh-ost-linux-amd64.tar.gz
+          actual_version=$(./luno-gh-ost --version)
           test "${actual_version%% *}" = "${expected_version}"
-          rm -f gh-ost
+          rm -f luno-gh-ost
 
           # The other platforms can't execute here, so assert the version string is
           # embedded in each binary instead.
-          for tarball in gh-ost-linux-arm64.tar.gz gh-ost-darwin-amd64.tar.gz gh-ost-darwin-arm64.tar.gz; do
+          for tarball in luno-gh-ost-linux-arm64.tar.gz luno-gh-ost-darwin-amd64.tar.gz luno-gh-ost-darwin-arm64.tar.gz; do
             tar -xzf "${tarball}"
-            grep -a -q -- "${expected_version}" gh-ost
-            rm -f gh-ost
+            grep -a -q -- "${expected_version}" luno-gh-ost
+            rm -f luno-gh-ost
           done
 
       - name: Attest release artifacts
@@ -62,6 +62,8 @@ jobs:
         with:
           subject-path: release-artifacts/*
 
+      # The release is created as a draft so assets are never visible half-uploaded,
+      # then published once every asset is uploaded and counted.
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,5 +82,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          test "$(gh release view "${RELEASE_TAG}" --json isDraft --jq '.isDraft')" = "true"
+          if [ "$(gh release view "${RELEASE_TAG}" --json isDraft --jq '.isDraft')" != "true" ]; then
+            echo "Release ${RELEASE_TAG} is already published; leaving its assets untouched."
+            exit 0
+          fi
           gh release upload "${RELEASE_TAG}" release-artifacts/* --clobber
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          expected_assets=$(ls -1 release-artifacts | wc -l)
+          actual_assets=$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets | length')
+          test "${actual_assets}" = "${expected_assets}"
+          gh release edit "${RELEASE_TAG}" --draft=false
